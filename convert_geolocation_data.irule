@@ -1,0 +1,15 @@
+### proc to convert integers to lat/lon degrees ###
+proc geoloc_mod {latitude longitude} {
+  return [list [expr {$latitude / 10000.}] [expr {$longitude / 10000.}]]
+}
+
+### example iRule taking advantage of the proc ###
+when HTTP_REQUEST {
+  set lat [whereis [IP::client_addr] latitude]
+  set lon [whereis [IP::client_addr] longitude]
+  if { [string is integer $lat] && [string is integer $lon] } {
+    #use proc to convert geolocation from strings to degrees, store in a list
+    set geoloc_deg [call geoloc_mod $lat $lon]
+  }
+  log local0. "Latitude: [lindex $geoloc_deg 0], Longititude: [lindex $geoloc_deg 1]"
+}
