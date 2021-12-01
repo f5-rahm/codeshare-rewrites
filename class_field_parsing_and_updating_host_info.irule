@@ -1,17 +1,27 @@
-when HTTP_REQUEST {
-  #find a match using host+uri against the class and
-  #returns the whole string (field1 field2 field3)then
-  #set it as newURI variable.
-  set newURI "[findclass [HTTP::host][HTTP::uri] $::redlist]"
-  if { $newURI ne "" } {
-    # Parse the three fields in the matched datagroup line
-    scan $newURI {%s %s %s} unused host uri
-    #change host and uri
-    if {$host ne ""}{
-      HTTP::header replace Host $host
-    }
-    if {$uri ne ""}{
-      HTTP::uri $uri
+when HTTP_REQUEST priority 501 {
+  # Make sure other iRules or policies haven't already responded
+  if { [HTTP::has_responded] } {
+    return
+  } else {
+    # check the data-group for the host/uri string and if matched,
+    # return the new host+uri and store as variables
+    # data-group format 
+    # ltm data-group internal redlist {
+    #   records {
+    #     testvip.test.local/testpath/img.png {
+    #       data "newtestvip.test.local /newtestpath/img.png"
+    #     }
+    #   }
+    # }
+    scan [class match -value -- [HTTP::host][string tolower [HTTP::uri]] starts_with redlist] {%s %s} host uri
+    # If those variables are not empty strings, rewrite the Host header and the URI
+    if {($host ne "") and ($uri ne "") } {
+        HTTP::header replace Host $host
+        HTTP::uri $uri
     }
   }
+}
+# This lower priority request event is strictly for testing the iRule, it is not intended for rollout
+when HTTP_REQUEST priority 502 {
+    HTTP::respond 200 content "New Host: [HTTP::header Host], New URI: [HTTP::uri]"
 }
